@@ -2,6 +2,9 @@ from fastapi import FastAPI, Query
 import redis
 import h3
 import cassandra.cluster
+from pydantic import BaseModel
+from typing import List
+from fastapi import HTTPException
 
 app = FastAPI()
 
@@ -12,6 +15,7 @@ redis_client = redis.Redis(host="redis", port=6379, decode_responses=True)
 cassandra_cluster = cassandra.cluster.Cluster(["cassandra"])
 session = cassandra_cluster.connect()
 session.set_keyspace("uber_poc")
+
 
 @app.get("/nearby-drivers")
 def get_nearby_drivers(lat: float, lon: float, radius: int = Query(1, ge=1, le=10)):
@@ -39,29 +43,33 @@ def get_nearby_drivers(lat: float, lon: float, radius: int = Query(1, ge=1, le=1
     return {"nearby_drivers": drivers}
 
 
+
+# Define expected request body format
+class DriverRequest(BaseModel):
+    driver_ids: List[str]
+
 @app.post("/last-known-locations")
-def get_last_known_locations(driver_ids: list[str]):
-    """Fetch last known locations for a list of up to 50 drivers."""
-    if len(driver_ids) > 50:
-        return {"error": "Max limit is 50 driver IDs per request"}
-    
-    locations = []
-    for driver_id in driver_ids:
-        driver_data = redis_client.hgetall(f"driver:{driver_id}")
-        if driver_data:
-            locations.append({
+async def last_known_locations(request: DriverRequest):
+    if not request.driver_ids:
+        raise HTTPException(status_code=400, detail="Driver IDs list cannot be empty")
+
+    # Fetch last known locations from Redis or Cassandra
+    drivers_data = []
+    for driver_id in request.driver_ids:
+        data = redis_client.hgetall(f"driver:{driver_id}")
+        if data:
+            drivers_data.append({
                 "id": driver_id,
-                "lat": float(driver_data.get("lat", 0)),
-                "lon": float(driver_data.get("lon", 0)),
-                "last_updated": driver_data.get("last_updated")
+                "lat": float(data.get("lat", 0.0)),
+                "lon": float(data.get("lon", 0.0)),
+                "last_updated": data.get("last_updated", "N/A")
             })
-    
-    if not locations:
-        # Fallback to Cassandra if Redis cache misses
-        rows = session.execute("SELECT driver_id, lat, lon, last_updated FROM locations WHERE driver_id IN %s", (tuple(driver_ids),))
-        locations = [{
-            "id": row.driver_id, "lat": row.lat, "lon": row.lon, "last_updated": row.last_updated.isoformat()
-        } for row in rows]
-    
-    locations.sort(key=lambda x: x["last_updated"], reverse=True)  # Sort by most recent
-    return {"last_known_locations": locations}
+
+    return {"drivers": sorted(drivers_data, key=lambda x: x["last_updated"], reverse=True)}
+
+
+
+@app.post("/flush-redis")
+async def flush_redis():
+    redis_client.flushall()  # Clears all Redis data
+    return {"message": "Redis cache flushed successfully"}
