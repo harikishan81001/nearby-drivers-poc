@@ -36,9 +36,14 @@ while True:
     timestamp = datetime.datetime.utcnow()
     h3_index = h3.latlng_to_cell(lat, lon, 9)
     
-    # Store in Redis (fast lookup)
     redis_client.sadd(f"drivers:{h3_index}", driver_id)
-    redis_client.expire(f"drivers:{h3_index}", 300)  # TTL: 5 mins
+    redis_client.hset(f"driver:{driver_id}", mapping={
+        "lat": lat,
+        "lon": lon,
+        "last_updated": timestamp.isoformat()
+    })
+    redis_client.expire(f"driver:{driver_id}", 300)  # TTL: 5 mins
+    redis_client.expire(f"drivers:{h3_index}", 300)
     
     # Store in Cassandra (durability)
     session.execute("""
