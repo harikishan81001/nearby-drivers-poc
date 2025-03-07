@@ -37,3 +37,31 @@ def get_nearby_drivers(lat: float, lon: float, radius: int = Query(1, ge=1, le=1
         drivers = [{"id": row.driver_id, "lat": row.lat, "lon": row.lon} for row in rows]
     
     return {"nearby_drivers": drivers}
+
+
+@app.post("/last-known-locations")
+def get_last_known_locations(driver_ids: list[str]):
+    """Fetch last known locations for a list of up to 50 drivers."""
+    if len(driver_ids) > 50:
+        return {"error": "Max limit is 50 driver IDs per request"}
+    
+    locations = []
+    for driver_id in driver_ids:
+        driver_data = redis_client.hgetall(f"driver:{driver_id}")
+        if driver_data:
+            locations.append({
+                "id": driver_id,
+                "lat": float(driver_data.get("lat", 0)),
+                "lon": float(driver_data.get("lon", 0)),
+                "last_updated": driver_data.get("last_updated")
+            })
+    
+    if not locations:
+        # Fallback to Cassandra if Redis cache misses
+        rows = session.execute("SELECT driver_id, lat, lon, last_updated FROM locations WHERE driver_id IN %s", (tuple(driver_ids),))
+        locations = [{
+            "id": row.driver_id, "lat": row.lat, "lon": row.lon, "last_updated": row.last_updated.isoformat()
+        } for row in rows]
+    
+    locations.sort(key=lambda x: x["last_updated"], reverse=True)  # Sort by most recent
+    return {"last_known_locations": locations}
