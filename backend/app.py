@@ -20,8 +20,8 @@ session.set_keyspace("uber_poc")
 @app.get("/nearby-drivers")
 def get_nearby_drivers(lat: float, lon: float, radius: int = Query(1, ge=1, le=10)):
     """Find nearby drivers using H3 indexing and Redis, returning their locations."""
-    h3_index = h3.latlng_to_cell(lat, lon, 9)  # Correct method for latest H3
-    nearby_indexes = h3.grid_disk(h3_index, radius)  # Correct replacement for k_ring
+    h3_index = h3.latlng_to_cell(lat, lon, 9)
+    nearby_indexes = h3.grid_disk(h3_index, radius)
     drivers = []
 
     for index in nearby_indexes:
@@ -36,10 +36,21 @@ def get_nearby_drivers(lat: float, lon: float, radius: int = Query(1, ge=1, le=1
                 })
     
     if not drivers:
-        # Fallback to Cassandra if Redis cache misses
-        rows = session.execute("SELECT driver_id, lat, lon FROM locations WHERE h3_index = %s", (h3_index,))
-        drivers = [{"id": row.driver_id, "lat": row.lat, "lon": row.lon} for row in rows]
-    
+        query = (
+            "SELECT driver_id, lat, lon, last_updated FROM locations WHERE h3_index IN (%s)" % ",".join([
+                "'%s'" % idx for idx in nearby_indexes])
+        )
+        rows = session.execute(query)
+        for row in rows:
+            drivers.append({
+                "id": row.driver_id,
+                "lat": row.lat,
+                "lon": row.lon,
+                "last_updated": row.last_updated.strftime("%Y-%m-%dT%H:%M:%S")
+            })
+
+    # Sort by last updated timestamp (most recent first)
+    drivers.sort(key=lambda x: x["last_updated"], reverse=True)    
     return {"nearby_drivers": drivers}
 
 
