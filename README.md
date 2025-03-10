@@ -195,7 +195,7 @@ docker-compose restart kafka
 
 ### 2️ Elasticsearch `geo_distance` Query
 
-#### 🛠 How It Works
+#### How It Works
 - Stores `lat/lon` as **`geo_point`** in Elasticsearch.
 - Uses **Haversine formula** to compute **exact distance**.
 
@@ -236,13 +236,13 @@ docker-compose restart kafka
 | **Historical Data Search** | Not Designed for This | Best |
 
 
-## ** Future Enhancements**
+## Future Enhancements
 **Implement ETA Calculation** (ML-based estimations).
 **Optimize Redis TTL** (Adjust expiration based on driver activity).
 **Support Multi-Region Lookups** (Extend `grid_disk` radius dynamically).
 
 ---
-## ** Conclusion**
+## Conclusion
 This PoC demonstrates a **scalable and efficient way** to match riders with nearby drivers using **H3 indexing, Redis caching, Kafka event streaming, and Cassandra storage**.
 
 If you have suggestions or improvements, feel free to contribute!
