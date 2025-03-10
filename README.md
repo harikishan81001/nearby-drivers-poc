@@ -92,15 +92,6 @@ GET http://localhost:5000/nearby-drivers?lat=28.7041&lon=77.1025&radius=1
 - The API dynamically adjusted search radius between **1-5 KM**.
 - The **Haversine formula** was used to calculate the distance between the user and each nearby driver.
 
-### **Results**
-| Metric | Value |
-|------------|--------------|
-| **Total Requests** | 1,000,000 |
-| **Concurrent Threads** | 100 |
-| **Avg Response Time** | ~20ms |
-| **Redis Hit Rate** | 95% |
-| **Cassandra Fallback Rate** | 5% |
-| **Total Execution Time** | ~600 seconds |
 
 ### **Report Generation**
 - The **Kafka Consumer** logs all processed driver locations into a CSV report.

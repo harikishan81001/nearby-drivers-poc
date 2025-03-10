@@ -16,8 +16,8 @@ BASE_LAT = 28.7041
 BASE_LON = 77.1025
 
 # Total Requests
-TOTAL_REQUESTS = 1000
-CONCURRENT_THREADS = 200  # Batch size
+TOTAL_REQUESTS = 100
+CONCURRENT_THREADS = 20  # Batch size
 
 # CSV Report File
 REPORT_FILE = "nearby_drivers_report.csv"
@@ -72,7 +72,7 @@ def fetch_nearby_drivers(results):
 
             # Calculate distance
             distance = haversine_distance(lat, lon, driver_lat, driver_lon) if driver_lat and driver_lon else "N/A"
-
+            print(response_time)
             results.append([
                 lat, lon, radius, driver_id, driver_lat, driver_lon, last_updated, distance, response_time
             ])

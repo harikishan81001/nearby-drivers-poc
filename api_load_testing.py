@@ -15,7 +15,7 @@ LAST_KNOWN_LOCATIONS_API = "http://localhost:5000/last-known-locations"
 TOTAL_REQUESTS = 500  # Total number of API calls
 CONCURRENT_THREADS = 50  # Number of concurrent threads per batch
 BATCH_SIZE = 100  # Number of requests per batch
-PAUSE_BETWEEN_BATCHES = 0  # Pause (seconds) between batches
+PAUSE_BETWEEN_BATCHES = 5  # Pause (seconds) between batches
 
 # Base Location (Example City Center)
 BASE_LAT = 28.7041
@@ -24,17 +24,9 @@ BASE_LON = 77.1025
 # CSV Report File
 REPORT_FILE = "latency_benchmark.csv"
 
-# Store latency results
+# Shared lock for thread-safe latency recording
+lock = threading.Lock()
 latency_results = []
-
-# Function to calculate Haversine distance
-def haversine_distance(lat1, lon1, lat2, lon2):
-    R = 6371  # Radius of Earth in km
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c  # Distance in km
 
 # Function to randomly generate lat/lon within a small offset
 def randomize_location(base_lat, base_lon):
@@ -43,29 +35,30 @@ def randomize_location(base_lat, base_lon):
     return base_lat + lat_offset, base_lon + lon_offset
 
 # Function to send request and measure latency
-def send_request(api_url, params, method="GET", json_body=None, results=None):
+def send_request(api_url, params, method="GET", json_body=None):
     start_time = time.time()
     
     try:
         if method == "GET":
-            response = requests.get(api_url, params=params)
+            response = requests.get(api_url, params=params, timeout=5)
         elif method == "POST":
             headers = {"Content-Type": "application/json"}
-            response = requests.post(api_url, json=json_body, headers=headers)
+            response = requests.post(api_url, json=json_body, headers=headers, timeout=5)
         else:
             raise ValueError("Unsupported HTTP method")
         
         end_time = time.time()
         response_time = (end_time - start_time) * 1000  # Convert to ms
 
-        if response.status_code == 200 and results is not None:
-            results.append(response_time)
+        if response.status_code == 200:
+            with lock:
+                latency_results.append(response_time)
         else:
             print(f"Failed request to {api_url} with status code: {response.status_code}")
     except Exception as e:
         print(f"Error in request: {e}")
 
-# Function to load test APIs
+# Function to run load test in batches
 def run_load_test():
     global latency_results
     total_batches = TOTAL_REQUESTS // BATCH_SIZE
@@ -73,7 +66,6 @@ def run_load_test():
     for batch in range(total_batches):
         print(f"Starting batch {batch + 1} of {total_batches}")
 
-        results = []
         threads = []
 
         for _ in range(BATCH_SIZE):
@@ -81,24 +73,21 @@ def run_load_test():
             radius = random.randint(1, 5)
 
             # Randomly choose API to simulate real usage
-            # if random.choice([True, False]):
-            # GET request for nearby drivers
-            params = {"lat": lat, "lon": lon, "radius": radius}
-            thread = threading.Thread(target=send_request, args=(NEARBY_DRIVERS_API, params, "GET", None, results))
-            # else:
-            #     # POST request for last known locations
-            #     driver_ids = [f"driver_{random.randint(1, 1000)}" for _ in range(10)]
-            #     json_body = {"driver_ids": driver_ids}
-            #     thread = threading.Thread(target=send_request, args=(LAST_KNOWN_LOCATIONS_API, None, "POST", json_body, results))
+            if random.choice([True, False]):
+                # GET request for nearby drivers
+                params = {"lat": lat, "lon": lon, "radius": radius}
+                thread = threading.Thread(target=send_request, args=(NEARBY_DRIVERS_API, params, "GET", None))
+            else:
+                # POST request for last known locations
+                driver_ids = [f"driver_{random.randint(1, 1000)}" for _ in range(10)]
+                json_body = {"driver_ids": driver_ids}
+                thread = threading.Thread(target=send_request, args=(LAST_KNOWN_LOCATIONS_API, None, "POST", json_body))
 
             thread.start()
             threads.append(thread)
 
         for thread in threads:
             thread.join()
-
-        # Append batch results to main latency results
-        latency_results.extend(results)
 
         print(f"Batch {batch + 1} completed. Pausing for {PAUSE_BETWEEN_BATCHES} seconds...")
         time.sleep(PAUSE_BETWEEN_BATCHES)
