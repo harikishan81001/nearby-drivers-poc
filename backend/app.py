@@ -32,7 +32,8 @@ def get_nearby_drivers(lat: float, lon: float, radius: int = Query(1, ge=1, le=1
                 drivers.append({
                     "id": driver_id,
                     "lat": float(driver_data.get("lat", 0)),
-                    "lon": float(driver_data.get("lon", 0))
+                    "lon": float(driver_data.get("lon", 0)),
+                    "last_updated": driver_data.get("last_updated")
                 })
     
     if not drivers:

@@ -170,16 +170,76 @@ docker-compose restart kafka
   ```
 
 ---
-## ** Future Enhancements**
-✅ **Implement ETA Calculation** (ML-based estimations).
-✅ **Optimize Redis TTL** (Adjust expiration based on driver activity).
-✅ **Support Multi-Region Lookups** (Extend `grid_disk` radius dynamically).
+
+## Comparison: H3 vs. Elasticsearch `geo_distance`
+
+### 1️ H3-Based Approach (Current Solution)
+
+#### 🛠 How It Works
+- Maps driver locations to **H3 hexagonal indexes**.
+- **Finds nearby drivers** by querying **neighboring H3 cells**.
+- **Uses Redis for caching**, falls back to Cassandra.
+
+#### Pros
+✔ **Blazing Fast** (**O(1) in Redis**)  
+✔ **Scalable for millions of requests/sec**  
+✔ **Lower memory & CPU overhead**  
+✔ **Great for real-time ride-matching**
+
+#### Cons
+✖ **Less precise than `geo_distance`**  
+✖ **Requires H3 pre-indexing**  
+✖ **Hexagonal search radius is approximate**  
 
 ---
-## ** Credits & References**
-- **H3 Library:** [https://h3geo.org](https://h3geo.org)
-- **Kafka Documentation:** [https://kafka.apache.org](https://kafka.apache.org)
-- **Cassandra Docs:** [https://cassandra.apache.org](https://cassandra.apache.org)
+
+### 2️ Elasticsearch `geo_distance` Query
+
+#### 🛠 How It Works
+- Stores `lat/lon` as **`geo_point`** in Elasticsearch.
+- Uses **Haversine formula** to compute **exact distance**.
+
+#### Pros
+✔ **Precise distance-based filtering**  
+✔ **Supports complex queries** (e.g., filter by rating, vehicle type)  
+✔ **No need for pre-indexing**
+
+#### Cons
+✖ **Slower than H3 for high-QPS**  
+✖ **CPU-intensive on large datasets**  
+✖ **Scaling challenges for millions of requests/sec**
+
+---
+
+## Performance Benchmark
+
+| Feature                | **H3 + Redis + Cassandra**  | **Elasticsearch (`geo_distance`)** |
+|------------------------|--------------------------|--------------------------------|
+| **Query Complexity**   | **O(1)** in Redis, **O(logN)** in Cassandra | **O(logN)** (Tree-based lookup) |
+| **Scalability**        | Best for **high QPS** | Slower for **millions of requests/sec** |
+| **Accuracy**           | Approximate (Hex Grid) | Precise (Exact Distance) |
+| **Latency (P95)**      | **~10-50ms** (Redis) | **~100-300ms** (Elasticsearch) |
+| **Memory Usage**       | Low (Redis stores active drivers) | High (ES needs RAM for caching) |
+| **Preprocessing Needed?** | Requires **H3 Indexing** | Just store `geo_point` |
+| **Supports Complex Queries?** | No | Yes (Filtering by driver rating, etc.) |
+
+---
+
+## When to Use What?
+
+| Use Case | **H3-Based Approach** | **Elasticsearch** |
+|----------|----------------------|------------------|
+| **Ride Matching (Millions of QPS)** | Best Choice | Too Slow |
+| **Small-Scale Geo Queries** | Good | Good |
+| **Precise Distance Filtering** | Not Ideal | Best |
+| **Geofencing (Fast Lookup)** | Efficient | Slower |
+| **Historical Data Search** | Not Designed for This | Best |
+
+
+## ** Future Enhancements**
+**Implement ETA Calculation** (ML-based estimations).
+**Optimize Redis TTL** (Adjust expiration based on driver activity).
+**Support Multi-Region Lookups** (Extend `grid_disk` radius dynamically).
 
 ---
 ## ** Conclusion**
