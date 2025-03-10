@@ -1,8 +1,8 @@
-# 🚀 Ride Matching Platform - Proof of Concept
+# Ride Matching Platform - Proof of Concept
 
 This repository contains a **Proof of Concept (PoC)** for a **ride matching platform** that can handle **1 million requests per second**, inspired by real-world implementations.
 
-## **🛠️ Tech Stack**
+## ** Tech Stack**
 ### **Core Technologies Used**
 - **FastAPI** - Lightweight and high-performance API framework for backend services.
 - **Apache Cassandra** - NoSQL distributed database for storing driver locations with time-to-live (TTL).
@@ -12,20 +12,20 @@ This repository contains a **Proof of Concept (PoC)** for a **ride matching plat
 - **Docker & Docker Compose** - Containerized deployment for all services.
 
 ---
-## **📌 System Overview**
+## ** System Overview**
 This PoC mimics how ride-matching platforms efficiently find nearby drivers **at scale**. Here’s how it works:
 
-### **1️⃣ Driver Location Updates (Kafka Producer)**
+### **1️ Driver Location Updates (Kafka Producer)**
 - A **Simulator Service** continuously generates **1000 driver location updates** every **30 seconds**.
 - These updates are **published to Kafka** in the `driver-locations` topic.
 
-### **2️⃣ Location Processing (Kafka Consumer)**
+### **2️ Location Processing (Kafka Consumer)**
 - A **Consumer Service** subscribes to the Kafka `driver-locations` topic and processes each message.
 - **H3 hexagonal grid indexing** is used to assign each driver to a **grid cell**.
 - Driver locations are stored in **Cassandra with a TTL** of **1 hour**, ensuring old locations expire automatically.
 - Driver locations are also **cached in Redis** for quick lookups.
 
-### **3️⃣ Finding Nearby Drivers (API Request)**
+### **3️ Finding Nearby Drivers (API Request)**
 - The **FastAPI backend** exposes an endpoint to fetch nearby drivers.
 - The request contains **user latitude, longitude, and search radius**.
 - The system:
@@ -36,15 +36,15 @@ This PoC mimics how ride-matching platforms efficiently find nearby drivers **at
 - Returns a list of **nearby drivers sorted by proximity**.
 
 ---
-## **⚙️ Docker-Based Local Setup**
+## ** Docker-Based Local Setup**
 
-### **🔹 Step 1: Clone the Repository**
+### ** Step 1: Clone the Repository**
 ```sh
 git clone <repo-url>
 cd <repo-directory>
 ```
 
-### **🔹 Step 2: Start the System**
+### ** Step 2: Start the System**
 ```sh
 docker-compose up --build
 ```
@@ -57,9 +57,9 @@ This will start:
 - **Simulator** (Generates driver location updates)
 
 ---
-## **🚀 API Endpoints**
+## ** API Endpoints**
 
-### **🔹 Get Nearby Drivers**
+### ** Get Nearby Drivers**
 **URL:** `GET /nearby-drivers`
 
 **Query Parameters:**
@@ -86,7 +86,7 @@ GET http://localhost:5000/nearby-drivers?lat=28.7041&lon=77.1025&radius=1
 ```
 
 ---
-## **📊 Performance Testing & Results**
+## ** Performance Testing & Results**
 ### **Load Testing Details**
 - A script was executed to simulate **1 million requests** to fetch nearby drivers.
 - The API dynamically adjusted search radius between **1-5 KM**.
@@ -112,26 +112,26 @@ driver_23, 28.7032, 77.1015, 8928308280fffff, 2025-03-07T12:34:56
 ---
 
 ---
-## **🔧 Architecture Explained**
+## ** Architecture Explained**
 
-### **1️⃣ Kafka-Based Driver Location Updates**
+### **1️ Kafka-Based Driver Location Updates**
 - The **simulator** generates fake driver movements and **publishes them to Kafka**.
 - Kafka ensures **fault-tolerant, real-time message processing**.
 
-### **2️⃣ Cassandra as a Long-Term Storage Layer**
+### **2️ Cassandra as a Long-Term Storage Layer**
 - Stores **driver locations with TTL (1 hour)** to automatically remove stale data.
 - Allows **fast writes with partitioning on H3 index**.
 
-### **3️⃣ Redis for Fast Driver Lookup**
+### **3️ Redis for Fast Driver Lookup**
 - Nearby drivers are first looked up in **Redis** (hot cache).
 - If missing, data is fetched from **Cassandra**.
 
-### **4️⃣ H3 Geospatial Indexing**
+### **4️ H3 Geospatial Indexing**
 - Converts **lat/lon to a hex index** (H3 grid resolution 9).
 - **`grid_disk`** is used to efficiently **query adjacent hexagons**.
 
 ---
-## **📌 Key Improvements Over Traditional Approaches**
+## ** Key Improvements Over Traditional Approaches**
 | Approach | Challenge | Our Optimization |
 |------------|------------|----------------|
 | **Raw Lat/Lon Queries** | Inefficient for large-scale lookups | **H3 Geospatial Indexing** reduces query time |
@@ -139,9 +139,9 @@ driver_23, 28.7032, 77.1015, 8928308280fffff, 2025-03-07T12:34:56
 | **No Message Queue** | Handling **real-time updates** becomes complex | **Kafka decouples location updates from lookup queries** |
 
 ---
-## **🛠️ Troubleshooting**
+## ** Troubleshooting**
 
-### **1️⃣ Cassandra Connection Issue**
+### **1️ Cassandra Connection Issue**
 ```sh
 cqlsh cassandra 9042
 ```
@@ -150,7 +150,7 @@ If it fails, restart the Cassandra service:
 docker-compose restart cassandra
 ```
 
-### **2️⃣ Kafka Not Processing Messages**
+### **2️ Kafka Not Processing Messages**
 ```sh
 docker logs -f consumer
 ```
@@ -159,7 +159,7 @@ If there’s an error, restart Kafka:
 docker-compose restart kafka
 ```
 
-### **3️⃣ API Not Returning Drivers**
+### **3️ API Not Returning Drivers**
 - Ensure **simulator is running**:
   ```sh
   docker logs -f simulator
@@ -170,20 +170,20 @@ docker-compose restart kafka
   ```
 
 ---
-## **🚀 Future Enhancements**
+## ** Future Enhancements**
 ✅ **Implement ETA Calculation** (ML-based estimations).
 ✅ **Optimize Redis TTL** (Adjust expiration based on driver activity).
 ✅ **Support Multi-Region Lookups** (Extend `grid_disk` radius dynamically).
 
 ---
-## **💡 Credits & References**
+## ** Credits & References**
 - **H3 Library:** [https://h3geo.org](https://h3geo.org)
 - **Kafka Documentation:** [https://kafka.apache.org](https://kafka.apache.org)
 - **Cassandra Docs:** [https://cassandra.apache.org](https://cassandra.apache.org)
 
 ---
-## **✅ Conclusion**
-This PoC demonstrates a **scalable and efficient way** to match riders with nearby drivers using **H3 indexing, Redis caching, Kafka event streaming, and Cassandra storage**. 🚀
+## ** Conclusion**
+This PoC demonstrates a **scalable and efficient way** to match riders with nearby drivers using **H3 indexing, Redis caching, Kafka event streaming, and Cassandra storage**.
 
-If you have suggestions or improvements, feel free to contribute! 💡
+If you have suggestions or improvements, feel free to contribute!
 
